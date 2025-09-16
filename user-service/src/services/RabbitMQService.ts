@@ -3,7 +3,7 @@ import config from "../config/config";
 import { User } from "../database";
 import { ApiError } from "../utils";
 
-export class RabbitMQService {
+class RabbitMQService {
     private requestQueue = "USER_DETAILS_REQUEST";
     private responseQueue = "USER_DETAILS_RESPONSE";
     private connection!: Connection;
@@ -49,3 +49,5 @@ export class RabbitMQService {
         return userDetails;
     }
 }
+
+export const rabbitMQService = new RabbitMQService();
