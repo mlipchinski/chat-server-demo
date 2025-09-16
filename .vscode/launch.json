@@ -1,0 +1,23 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "User Service",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/user-service",
+            "runtimeArgs": [
+                "--import=tsx",
+                "-r",
+                "dotenv/config",
+                "--enable-source-maps"
+            ],
+            "program": "${workspaceFolder}/user-service/src/server.ts",
+            "envFile": "${workspaceFolder}/user-service/.env",
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        }
+    ]
+}
