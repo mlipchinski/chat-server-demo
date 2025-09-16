@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch -r dotenv/config src/server.ts",
+    "build": "rimraf build && tsc -p .",
+    "start": "node build/server.js"
   },
   "keywords": [],
   "author": "",
@@ -27,6 +29,8 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^24.5.0",
-    "@types/validator": "^13.15.3"
+    "@types/validator": "^13.15.3",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2"
   }
 }

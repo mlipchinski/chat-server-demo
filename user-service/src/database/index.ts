@@ -1,4 +1,6 @@
 import { connectDB } from "./connection";
-import User, { IUser } from "./models/UserModel";
+import User from "./models/UserModel";
+import type { IUser } from "./models/UserModel";
 
-export { User, IUser, connectDB }
+export { User, connectDB };
+export type { IUser };
