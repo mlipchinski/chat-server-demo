@@ -89,5 +89,5 @@ const createSendToken = async (user: IUser, res: Response) => {
 
     res.cookie("jwt", token, cookieOptions);
 
-    return res;
+    return token;
 };
