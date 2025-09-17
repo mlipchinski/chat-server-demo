@@ -18,6 +18,24 @@
             "skipFiles": [
                 "<node_internals>/**"
             ]
-        }
+        },
+        {
+            "name": "Chat Service",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/chat-service",
+            "runtimeArgs": [
+                "--import=tsx",
+                "-r",
+                "dotenv/config",
+                "--enable-source-maps"
+            ],
+            "program": "${workspaceFolder}/chat-service/src/server.ts",
+            "envFile": "${workspaceFolder}/chat-service/.env",
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        },
     ]
 }
