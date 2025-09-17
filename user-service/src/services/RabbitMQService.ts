@@ -26,8 +26,8 @@ export class RabbitMQService {
     private async listenForRequests() {
         this.channel.consume(this.requestQueue, async (msg) => {
             if (msg && msg.content) {
-                const { userID } = JSON.parse(msg.content.toString());
-                const userDetails = await this.getUserDetails(userID);
+                const { userId } = JSON.parse(msg.content.toString());
+                const userDetails = await this.getUserDetails(userId);
 
                 this.channel.sendToQueue(
                     this.responseQueue,
