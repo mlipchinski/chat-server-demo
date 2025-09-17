@@ -1,4 +1,4 @@
-import { NextFunction, Request, Response, ErrorRequestHandler } from "express";
+import { NextFunction, Request, Response, ErrorRequestHandler, RequestHandler } from "express";
 import config from "../config/config";
 import { ApiError } from "../utils";
 import jwt from 'jsonwebtoken';
@@ -15,7 +15,7 @@ interface IUser {
     _id: string;
     name: string;
     email: string;
-    passwod: string;
+    password: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -42,7 +42,7 @@ export const authMiddleware = async (req: IAuthRequest, res: Response, next: Nex
             createdAt: new Date(decoded.iat * 1000),
             updatedAt: new Date(decoded.exp * 1000),
             name: decoded.name,
-            passwod: "",
+            password: "",
         }
 
         return next();
