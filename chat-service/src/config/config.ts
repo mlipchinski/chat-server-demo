@@ -1,0 +1,39 @@
+import { config } from "dotenv";
+
+const configFile = `./.env`;
+config({ path: configFile });
+
+const {
+    NODE_ENV,
+    PORT,
+    JWT_SECRET,
+
+    MONGO_HOST,
+    MONGO_PORT,
+    MONGO_DB,
+    MONGO_INITDB_ROOT_USERNAME,
+    MONGO_INITDB_ROOT_PASSWORD,
+
+    RABBITMQ_HOST,
+    RABBITMQ_PORT,
+    RABBITMQ_DEFAULT_USER,
+    RABBITMQ_DEFAULT_PASS,
+    RABBITMQ_VHOST,
+} = process.env;
+
+// Build Mongo URI
+const MONGO_URI = `mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=admin`;
+
+// Build RabbitMQ URL
+const MESSAGE_BROKER_URL = `amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}${RABBITMQ_VHOST}`;
+
+const queue = { notifications: "NOTIFICATIONS" };
+
+export default {
+    env: NODE_ENV,
+    PORT,
+    JWT_SECRET,
+    MONGO_URI,
+    msgBrokerUrl: MESSAGE_BROKER_URL,
+    queue,
+}
