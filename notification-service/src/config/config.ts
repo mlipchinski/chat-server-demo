@@ -11,7 +11,11 @@ const {
     RABBITMQ_VHOST,
 
     SMTP_HOST,
-    SMTP_PORT = 587
+    SMTP_PORT = 587,
+
+    SMTP_USER,
+    SMTP_PASS,
+    EMAIL_FROM,
 
 } = process.env;
 
@@ -24,4 +28,7 @@ export default {
     msgBrokerUrl: MESSAGE_BROKER_URL,
     SMTP_HOST,
     SMTP_PORT,
+    SMTP_USER,
+    SMTP_PASS,
+    EMAIL_FROM,
 };
