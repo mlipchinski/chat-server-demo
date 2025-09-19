@@ -3,7 +3,7 @@ import { EmailService } from "./EmailService";
 import { UserStatusStore } from "../utils";
 import config from "../config/config";
 
-export class RabbitMQServer {
+export class RabbitMQService {
     private channel!: Channel;
     private emailService = new EmailService();
     private userStatusStore = UserStatusStore.getInstance();
