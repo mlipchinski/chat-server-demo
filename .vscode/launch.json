@@ -37,5 +37,23 @@
                 "<node_internals>/**"
             ]
         },
+        {
+            "name": "Notification Service",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/notification-service",
+            "runtimeArgs": [
+                "--import=tsx",
+                "-r",
+                "dotenv/config",
+                "--enable-source-maps"
+            ],
+            "program": "${workspaceFolder}/notification-service/src/server.ts",
+            "envFile": "${workspaceFolder}/notification-service/.env",
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        },
     ]
 }
