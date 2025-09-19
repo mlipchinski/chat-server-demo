@@ -21,6 +21,7 @@ const {
 
 // Build RabbitMQ URL
 const MESSAGE_BROKER_URL = `amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@${RABBITMQ_HOST}:${RABBITMQ_PORT}${RABBITMQ_VHOST}`;
+const queue = { notifications: "NOTIFICATIONS" };
 
 export default {
     env: NODE_ENV,
@@ -31,4 +32,5 @@ export default {
     SMTP_USER,
     SMTP_PASS,
     EMAIL_FROM,
+    queue,
 };
