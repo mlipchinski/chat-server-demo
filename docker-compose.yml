@@ -1,6 +1,71 @@
-version: "3.9"
-
 services:
+  auth:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "${USER_SERVICE_PORT}:8081"
+    restart: always
+    depends_on: 
+      - mongo
+      - rabbitmq
+    environment:
+      - NODE_ENV=production
+      # Mongo (authSource=admin since you set root user on admin DB)
+      - MONGO_URI=mongodb://root:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/${MONGO_DB}?authSource=admin
+      # RabbitMQ
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      # SMTP (Mailpit)
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+
+  messages:
+    build:
+      context: ./chat-service
+      dockerfile: Dockerfile
+    ports:
+      - "${MESSAGES_SERVICE_PORT}:8082"
+    restart: always
+    depends_on:
+      - mongo
+      - rabbitmq
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://root:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/${MONGO_DB}?authSource=admin
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+
+  notifications:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    ports:
+      - "${NOTIFICATIONS_SERVICE_PORT}:8083"
+    restart: always
+    depends_on:
+      - mongo
+      - rabbitmq
+      - mailpit
+    environment:
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://root:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/${MONGO_DB}?authSource=admin
+      - RABBITMQ_URL=amqp://${RABBITMQ_DEFAULT_USER}:${RABBITMQ_DEFAULT_PASS}@rabbitmq:5672/
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - SMTP_USER=
+      - SMTP_PASS=
+      - EMAIL_FROM=${EMAIL_FROM}
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    ports:
+      - "85:85"
+    depends_on:
+      - auth
+      - messages
+      - notifications
+
   mongo:
     image: mongo:7
     container_name: mongo
@@ -12,6 +77,11 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     volumes:
       - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'db.runCommand({ ping: 1 })' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -19,18 +89,23 @@ services:
     restart: always
     ports:
       - "${RABBITMQ_PORT}:5672"
-      - "15672:15672" # Management UI
+      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   mailpit:
     image: axllent/mailpit
     container_name: mailpit
     restart: always
     ports:
-      - "8025:8025" # Web UI
-      - "1025:1025" # SMTP
+      - "${MAILPIT_WEB_PORT}:8025"
+      - "${MAILPIT_SMTP_PORT}:1025"
 
 volumes:
   mongo_data:
