@@ -7,6 +7,14 @@ import { Socket, Server as SocketIOServer } from 'socket.io';
 let server: HttpServer;
 connectDB();
 
+app.get('/health', async (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+    })
+});
+
 server = app.listen(config.PORT, () => {
     console.log(`Server running at port: ${config.PORT}`);
 });

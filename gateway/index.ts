@@ -1,16 +1,17 @@
-import express, { Express } from "express";
-import { Server } from 'http';
-import { errorConverter, errorHandler } from "./middleware";
-import config from "./config/config";
-import { RabbitMQService } from "./services";
+import express, { Express } from 'express';
+import proxy from 'express-http-proxy';
 
 const app: Express = express();
-let server: Server;
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(errorConverter);
-app.use(errorHandler);
+
+const auth = proxy("http://localhost:8081");
+const messages = proxy("http://localhost:8082");
+const notifications = proxy("http://localhost:8083");
+
+app.use('/api/auth', auth);
+app.use('/api/messages', messages);
+app.use('/api/notifications', notifications);
 
 app.get('/health', async (req, res) => {
     res.json({
@@ -20,20 +21,9 @@ app.get('/health', async (req, res) => {
     })
 });
 
-server = app.listen(config.PORT, () => {
-    console.log(`Server running at port: ${config.PORT}`);
+const server = app.listen(8080, () => {
+    console.log("Gateway is Listening to Port 8080");
 });
-
-const initRabbitMQService = async () => {
-    try {
-        let rabbitMQService = new RabbitMQService();
-        console.log("RabbitMQ client initialized and listening for messages.");
-    } catch (error) {
-        console.error("Failed to initialize RabbitMQ client:", error);
-    }
-};
-
-initRabbitMQService();
 
 const exitHandler = () => {
     if (server) {

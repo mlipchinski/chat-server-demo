@@ -55,5 +55,23 @@
                 "<node_internals>/**"
             ]
         },
+        {
+            "name": "Gateway",
+            "type": "node",
+            "request": "launch",
+            "cwd": "${workspaceFolder}/gateway",
+            "runtimeArgs": [
+                "--import=tsx",
+                "--enable-source-maps"
+            ],
+            "program": "${workspaceFolder}/gateway/index.ts",
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "env": {
+                "ESBUILD_WORKER_THREADS": "0"
+            }
+        },
     ]
 }

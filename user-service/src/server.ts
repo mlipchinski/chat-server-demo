@@ -17,6 +17,14 @@ app.use(errorHandler);
 
 connectDB();
 
+app.get('/health', async (req, res) => {
+    res.json({
+        status: 'OK',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+    })
+});
+
 server = app.listen(config.PORT, () => {
     console.log(`Server running at port: ${config.PORT}`);
 });
