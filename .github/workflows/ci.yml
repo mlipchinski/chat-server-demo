@@ -1,0 +1,266 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ github.repository_owner }}
+  COMMIT_SHA: ${{ github.sha }}
+  # service names -> image names (adjust if you rename folders)
+  AUTH_IMAGE: ghcr.io/${{ github.repository_owner }}/auth
+  MESSAGES_IMAGE: ghcr.io/${{ github.repository_owner }}/messages
+  NOTIFICATIONS_IMAGE: ghcr.io/${{ github.repository_owner }}/notifications
+  NGINX_IMAGE: ghcr.io/${{ github.repository_owner }}/nginx
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  lint-and-test:
+    name: Lint & unit tests (${{ matrix.service }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ "user-service", "chat-service", "notification-service" ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ${{ matrix.service }}/package-lock.json
+
+      - name: Install
+        working-directory: ${{ matrix.service }}
+        run: npm ci
+
+      - name: Lint (if present)
+        working-directory: ${{ matrix.service }}
+        run: |
+          if npm run | grep -q "^  lint"; then
+            npm run lint
+          else
+            echo "No lint script."
+          fi
+
+      - name: Test (if present)
+        working-directory: ${{ matrix.service }}
+        run: |
+          if npm run | grep -q "^  test"; then
+            npm test --if-present
+          else
+            echo "No tests."
+          fi
+
+  build-and-push:
+    name: Build & push images
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Build/push each image (add --platform if you need multi-arch)
+      - name: Build & push auth
+        uses: docker/build-push-action@v6
+        with:
+          context: ./user-service
+          file: ./user-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.AUTH_IMAGE }}:sha-${{ env.COMMIT_SHA }}
+            ${{ env.AUTH_IMAGE }}:${{ github.ref_name == 'main' && 'latest' || 'pr' }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push messages
+        uses: docker/build-push-action@v6
+        with:
+          context: ./chat-service
+          file: ./chat-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.MESSAGES_IMAGE }}:sha-${{ env.COMMIT_SHA }}
+            ${{ env.MESSAGES_IMAGE }}:${{ github.ref_name == 'main' && 'latest' || 'pr' }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push notifications
+        uses: docker/build-push-action@v6
+        with:
+          context: ./notification-service
+          file: ./notification-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.NOTIFICATIONS_IMAGE }}:sha-${{ env.COMMIT_SHA }}
+            ${{ env.NOTIFICATIONS_IMAGE }}:${{ github.ref_name == 'main' && 'latest' || 'pr' }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build & push nginx
+        uses: docker/build-push-action@v6
+        with:
+          context: ./nginx
+          file: ./nginx/Dockerfile
+          push: true
+          tags: |
+            ${{ env.NGINX_IMAGE }}:sha-${{ env.COMMIT_SHA }}
+            ${{ env.NGINX_IMAGE }}:${{ github.ref_name == 'main' && 'latest' || 'pr' }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  integration:
+    name: Integration smoke tests
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    env:
+      # Point compose to use just-built images by tag
+      AUTH_IMAGE: ${{ env.AUTH_IMAGE }}:sha-${{ env.COMMIT_SHA }}
+      MESSAGES_IMAGE: ${{ env.MESSAGES_IMAGE }}:sha-${{ env.COMMIT_SHA }}
+      NOTIFICATIONS_IMAGE: ${{ env.NOTIFICATIONS_IMAGE }}:sha-${{ env.COMMIT_SHA }}
+      NGINX_IMAGE: ${{ env.NGINX_IMAGE }}:sha-${{ env.COMMIT_SHA }}
+      # Minimal env for dependencies
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: example
+      MONGO_DB: app
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: pass
+      MAILPIT_WEB_PORT: "38025"
+      MAILPIT_SMTP_PORT: "31025"
+      MONGO_PORT: "37017"
+      RABBITMQ_PORT: "35672"
+      RABBITMQ_MANAGEMENT_PORT: "35673"
+      USER_SERVICE_PORT: "38081"
+      MESSAGES_SERVICE_PORT: "38082"
+      NOTIFICATIONS_SERVICE_PORT: "38083"
+      EMAIL_FROM: noreply@example.com
+    steps:
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create CI override compose
+        run: |
+          cat > docker-compose.ci.override.yml <<'YAML'
+          services:
+            # Use the images built in previous job
+            auth:
+              image: ${AUTH_IMAGE}
+              healthcheck:
+                test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+                interval: 5s
+                timeout: 3s
+                retries: 20
+
+            messages:
+              image: ${MESSAGES_IMAGE}
+              healthcheck:
+                test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
+                interval: 5s
+                timeout: 3s
+                retries: 20
+
+            notifications:
+              image: ${NOTIFICATIONS_IMAGE}
+              healthcheck:
+                test: ["CMD", "wget", "-qO-", "http://localhost:8083/health"]
+                interval: 5s
+                timeout: 3s
+                retries: 20
+
+            nginx:
+              image: ${NGINX_IMAGE}
+
+            # Disable monitoring in CI (faster, fewer ports)
+            prometheus:
+              profiles: ["skip"]
+            grafana:
+              profiles: ["skip"]
+            cadvisor:
+              profiles: ["skip"]
+          YAML
+
+      - name: Start stack
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.override.yml up -d
+
+      - name: Wait for health
+        run: |
+          tries=60
+          until [ $tries -eq 0 ] || docker compose ps --format json | jq -e 'all(.Health == null or .Health == "healthy")'; do
+            docker compose ps
+            sleep 5
+            tries=$((tries-1))
+          done
+          docker compose ps
+          # If not healthy, fail with logs
+          if ! docker compose ps --format json | jq -e 'all(.Health == null or .Health == "healthy")'; then
+            docker compose logs --no-log-prefix
+            exit 1
+          fi
+
+      - name: Smoke check endpoints
+        run: |
+          curl -fsS http://localhost:${USER_SERVICE_PORT}/health
+          curl -fsS http://localhost:${MESSAGES_SERVICE_PORT}/health
+          curl -fsS http://localhost:${NOTIFICATIONS_SERVICE_PORT}/health
+          # If you exposed /metrics already, check that too:
+          curl -fsS http://localhost:${USER_SERVICE_PORT}/metrics | head -n 5
+
+      - name: Teardown
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.ci.override.yml down -v
+
+  # Optional: container vulnerability scan (Trivy)
+  trivy:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Run Trivy on images
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: |
+            ${{ env.AUTH_IMAGE }}:sha-${{ github.sha }}
+            ${{ env.MESSAGES_IMAGE }}:sha-${{ github.sha }}
+            ${{ env.NOTIFICATIONS_IMAGE }}:sha-${{ github.sha }}
+            ${{ env.NGINX_IMAGE }}:sha-${{ github.sha }}
+          format: 'table'
+          exit-code: '0'   # don't fail build on PRs; tighten later
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
