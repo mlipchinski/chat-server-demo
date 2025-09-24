@@ -147,10 +147,10 @@ jobs:
     needs: build-and-push
     env:
       # Point compose to use just-built images by tag
-      AUTH_IMAGE: ${{ env.AUTH_IMAGE }}:sha-${{ env.COMMIT_SHA }}
-      MESSAGES_IMAGE: ${{ env.MESSAGES_IMAGE }}:sha-${{ env.COMMIT_SHA }}
-      NOTIFICATIONS_IMAGE: ${{ env.NOTIFICATIONS_IMAGE }}:sha-${{ env.COMMIT_SHA }}
-      NGINX_IMAGE: ${{ env.NGINX_IMAGE }}:sha-${{ env.COMMIT_SHA }}
+      AUTH_IMAGE: ghcr.io/${{ github.repository_owner }}/auth:sha-${{ github.sha }}
+      MESSAGES_IMAGE: ghcr.io/${{ github.repository_owner }}/messages:sha-${{ github.sha }}
+      NOTIFICATIONS_IMAGE: ghcr.io/${{ github.repository_owner }}/notifications:sha-${{ github.sha }}
+      NGINX_IMAGE: ghcr.io/${{ github.repository_owner }}/nginx:sha-${{ github.sha }}
       # Minimal env for dependencies
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: example
