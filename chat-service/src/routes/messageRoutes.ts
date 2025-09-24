@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../middleware";
 import { getConversation, sendMessage } from "../controllers/MessageController";
+import { getPromMetrics } from "../controllers/PromController";
 
 export const messageRoutes = Router();
 
@@ -11,3 +12,6 @@ messageRoutes.post('/get/:receiverId',
     authMiddleware,
     getConversation
 );
+
+//Prometheus metrics
+messageRoutes.get('/metrics', getPromMetrics);
