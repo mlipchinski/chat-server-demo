@@ -1,0 +1,24 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'node-services'
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - 'auth:8081'
+          - 'messages:8082'
+          - 'notifications:8083'
+
+  # Container & Docker metrics (containers, CPU/mem, restarts, images, etc.)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # Windows host OS metrics (if you run Docker Desktop on Windows):
+  # Install windows_exporter on the HOST (not in Docker) and keep this target.
+  # Chocolatey: choco install windows-exporter  (listens on :9182 by default)
+  - job_name: 'windows-exporter'
+    static_configs:
+      - targets: ['host.docker.internal:9182']
