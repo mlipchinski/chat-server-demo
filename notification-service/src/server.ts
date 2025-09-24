@@ -3,6 +3,7 @@ import { Server } from 'http';
 import { errorConverter, errorHandler } from "./middleware";
 import config from "./config/config";
 import { RabbitMQService } from "./services";
+import { getPromMetrics } from "./controllers/PromController";
 
 const app: Express = express();
 let server: Server;
@@ -11,6 +12,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(errorConverter);
 app.use(errorHandler);
+
+//Prometheus metrics
+app.get('/metrics', getPromMetrics);
 
 app.get('/health', async (req, res) => {
     res.json({

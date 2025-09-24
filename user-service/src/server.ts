@@ -5,6 +5,7 @@ import { errorConverter, errorHandler } from './middleware';
 import { connectDB } from './database';
 import config from './config/config';
 import { RabbitMQService } from './services/RabbitMQService';
+import { getPromMetrics } from './controllers/PromController';
 
 const app: Express = express();
 let server: Server;
@@ -16,6 +17,8 @@ app.use(errorConverter);
 app.use(errorHandler);
 
 connectDB();
+
+app.get('/metrics', getPromMetrics);
 
 app.get('/health', async (req, res) => {
     res.json({
