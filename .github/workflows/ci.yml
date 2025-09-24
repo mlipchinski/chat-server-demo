@@ -184,35 +184,43 @@ jobs:
         run: |
           cat > docker-compose.ci.override.yml <<'YAML'
           services:
-            # Use the images built in previous job
+            # Fix mongo healthcheck (auth required)
+            mongo:
+              healthcheck:
+                test: ["CMD-SHELL", "mongosh --quiet --username $${MONGO_INITDB_ROOT_USERNAME} --password $${MONGO_INITDB_ROOT_PASSWORD} --authenticationDatabase admin --eval 'db.adminCommand({ ping: 1 }).ok' | grep 1"]
+                interval: 5s
+                timeout: 5s
+                retries: 30
+
+            # Use built images, no in-container healthchecks (wget/curl may be missing)
             auth:
               image: ${AUTH_IMAGE}
-              healthcheck:
-                test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
-                interval: 5s
-                timeout: 3s
-                retries: 20
+              depends_on:
+                mongo:
+                  condition: service_healthy
+                rabbitmq:
+                  condition: service_healthy
 
             messages:
               image: ${MESSAGES_IMAGE}
-              healthcheck:
-                test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
-                interval: 5s
-                timeout: 3s
-                retries: 20
+              depends_on:
+                mongo:
+                  condition: service_healthy
+                rabbitmq:
+                  condition: service_healthy
 
             notifications:
               image: ${NOTIFICATIONS_IMAGE}
-              healthcheck:
-                test: ["CMD", "wget", "-qO-", "http://localhost:8083/health"]
-                interval: 5s
-                timeout: 3s
-                retries: 20
+              depends_on:
+                mongo:
+                  condition: service_healthy
+                rabbitmq:
+                  condition: service_healthy
 
             nginx:
               image: ${NGINX_IMAGE}
 
-            # Disable monitoring in CI (faster, fewer ports)
+            # Keep monitoring skipped in CI for speed
             prometheus:
               profiles: ["skip"]
             grafana:
