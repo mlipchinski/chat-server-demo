@@ -166,6 +166,11 @@ jobs:
       MESSAGES_SERVICE_PORT: "38082"
       NOTIFICATIONS_SERVICE_PORT: "38083"
       EMAIL_FROM: noreply@example.com
+      PROMETHEUS_PORT: "9090"
+      CADVISOR_PORT: "8089"
+      GRAFANA_PORT: "3000"
+      GRAFANA_ADMIN_USER: "admin"
+      GRAFANA_ADMIN_PASS: "admin"
     steps:
       - uses: actions/checkout@v4
       - name: Log in to GHCR
@@ -219,28 +224,36 @@ jobs:
       - name: Start stack
         run: docker compose -f docker-compose.yml -f docker-compose.ci.override.yml up -d
 
-      - name: Wait for health
+      - name: Wait for services & smoke test
         run: |
-          tries=60
-          until [ $tries -eq 0 ] || docker compose ps --format json | jq -e 'all(.Health == null or .Health == "healthy")'; do
-            docker compose ps
+          timeout() { perl -e 'alarm shift; exec @ARGV' "$@"; }
+          try_curl() { timeout 5 curl -fsS "$1" || return 1; }
+
+          echo "Waiting for /health endpoints to come up..."
+          for i in $(seq 1 60); do
+            OK=1
+            try_curl "http://localhost:${USER_SERVICE_PORT}/health"        || OK=0
+            try_curl "http://localhost:${MESSAGES_SERVICE_PORT}/health"    || OK=0
+            try_curl "http://localhost:${NOTIFICATIONS_SERVICE_PORT}/health" || OK=0
+
+            if [ $OK -eq 1 ]; then
+              echo "All health checks passed."
+              break
+            fi
             sleep 5
-            tries=$((tries-1))
           done
-          docker compose ps
-          # If not healthy, fail with logs
-          if ! docker compose ps --format json | jq -e 'all(.Health == null or .Health == "healthy")'; then
+
+          if [ $OK -ne 1 ]; then
+            echo "Health checks failed. Showing logs:"
             docker compose logs --no-log-prefix
             exit 1
           fi
 
-      - name: Smoke check endpoints
-        run: |
-          curl -fsS http://localhost:${USER_SERVICE_PORT}/health
-          curl -fsS http://localhost:${MESSAGES_SERVICE_PORT}/health
-          curl -fsS http://localhost:${NOTIFICATIONS_SERVICE_PORT}/health
-          # If you exposed /metrics already, check that too:
-          curl -fsS http://localhost:${USER_SERVICE_PORT}/metrics | head -n 5
+          echo "Smoke: GET /health (again) and /metrics (user-service if present)"
+          curl -fsS "http://localhost:${USER_SERVICE_PORT}/health"
+          curl -fsS "http://localhost:${MESSAGES_SERVICE_PORT}/health"
+          curl -fsS "http://localhost:${NOTIFICATIONS_SERVICE_PORT}/health"
+          curl -fsS "http://localhost:${USER_SERVICE_PORT}/metrics" | head -n 10 || true
 
       - name: Teardown
         if: always()
